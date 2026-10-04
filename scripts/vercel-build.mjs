@@ -6,5 +6,5 @@ await cp('api/app.mjs',func+'/api/app.mjs');await cp('public/index.html',func+'/
 await writeFile(func+'/package.json',JSON.stringify({type:'module'}));
 await writeFile(func+'/index.mjs','export { default } from "./api/app.mjs";\n');
 await writeFile(func+'/.vc-config.json',JSON.stringify({runtime:'nodejs24.x',handler:'index.mjs',launcherType:'Nodejs',shouldAddHelpers:true},null,2));
-await writeFile(output+'/config.json',JSON.stringify({version:3,routes:[{src:'^/api/(.*)$',dest:'/app?path=$1'},{src:'^/.*$',dest:'/app'}]},null,2));
+await writeFile(output+'/config.json',JSON.stringify({version:3,routes:[{src:'^/api/(.*)$',dest:'/app?path=$1'},{src:'^/dashboard/?$',dest:'/app?page=dashboard'},{src:'^/(visitors/?)?$',dest:'/app?page=visitors'},{src:'^/.*$',dest:'/app'}]},null,2));
 console.log('Vercel application function and routes built');
