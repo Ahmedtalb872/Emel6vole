@@ -1,3 +1,4 @@
+import {handleAssociationChat} from '../association-chat.mjs';
 import {readFile} from 'node:fs/promises';import {handleSupabase,supabaseStatus} from '../supabase.mjs';import {handleAuth,requestAccessToken,refreshSession,applySession,clearSession} from '../supabase-auth.mjs';
 const pages=new Map();
 export default async function handler(req,res){
@@ -6,7 +7,8 @@ export default async function handler(req,res){
  if(url.pathname.startsWith('/api/')){
  let body=req.body;if(body&&typeof body!=='string')body=JSON.stringify(body);if(body&&Buffer.byteLength(body)>65536){res.statusCode=413;res.end();return;}const request=new Request(url,{method:req.method,headers:req.headers,body:['GET','HEAD'].includes(req.method)?undefined:body});
  let result;
- if(url.pathname.startsWith('/api/auth/'))result=await handleAuth(request);
+ if(url.pathname==='/api/association-chat')result=await handleAssociationChat(request);
+ else if(url.pathname.startsWith('/api/auth/'))result=await handleAuth(request);
  else if(url.pathname==='/api/supabase/status'&&req.method==='GET')result=await supabaseStatus();
  else{
  let token=requestAccessToken(request),session,clear=false;
