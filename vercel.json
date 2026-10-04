@@ -1,11 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "npm run build:vercel",
-  "outputDirectory": "vercel-output",
-  "functions": {"api/app.mjs": {"includeFiles": "public/index.html", "maxDuration": 30}},
-  "rewrites": [
-    {"source": "/api/:path*", "destination": "/api/app?path=:path*"},
-    {"source": "/:path*", "destination": "/api/app"}
-  ]
+  "installCommand": "npm install --omit=dev --no-audit --no-fund",
+  "buildCommand": "npm run build:vercel"
 }
