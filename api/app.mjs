@@ -2,7 +2,7 @@ import {readFile} from 'node:fs/promises';
 const pages=new Map();
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','DENY');res.setHeader('Referrer-Policy','same-origin');
- const url=new URL(req.url,'https://'+req.headers.host);const path=url.searchParams.get('path');if(path)url.pathname='/api/'+path;else if(url.pathname==='/api/app')url.pathname='/';
+ const url=new URL(req.url,'https://'+req.headers.host);const path=url.searchParams.get('path');if(path)url.pathname='/api/'+path;else if(url.pathname==='/api/app')url.pathname='/';const pageHint=url.searchParams.get('page');if(!path&&pageHint==='dashboard')url.pathname='/dashboard';else if(!path&&pageHint==='visitors')url.pathname='/';
  if(url.pathname.startsWith('/api/')){
  res.setHeader('Content-Type','application/json; charset=utf-8');
  if(req.method==='GET'&&url.pathname==='/api/records'){res.statusCode=200;res.end(JSON.stringify({records:[],preview:true}));return;}
