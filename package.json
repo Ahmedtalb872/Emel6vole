@@ -8,10 +8,17 @@
     "start": "node server.mjs",
     "build": "node build.mjs",
     "test": "node --test --test-isolation=none test/*.test.mjs",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "build:vercel": "node scripts/vercel-build.mjs"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.5"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }
