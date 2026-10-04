@@ -1,11 +1,11 @@
-export const kinds=['income','expense','member','beneficiary','aid','settings'];
-const prefixes={income:'REV',expense:'EXP',member:'MEM',beneficiary:'BEN',aid:'AID',settings:'SET'};
+export const kinds=['income','expense','member','worker','beneficiary','aid','settings'];
+const prefixes={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET'};
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 export function validate(kind,p){
  if(!kinds.includes(kind)||!p||typeof p!=='object'||Array.isArray(p))throw Error('بيانات غير صالحة');
  if(JSON.stringify(p).length>30000)throw Error('البيانات طويلة جدًا');
  if(['income','expense','aid'].includes(kind)){if(!/^\d{4}-\d{2}-\d{2}$/.test(p.date||'')||isNaN(Date.parse(p.date)))throw Error('التاريخ غير صالح');if(!Number.isFinite(Number(p.amount))||Number(p.amount)<=0)throw Error('أدخل مبلغًا أكبر من صفر');p.amount=Math.round(Number(p.amount)*100)/100;}
- if(['member','beneficiary'].includes(kind)&&!String(p.name||'').trim())throw Error('الاسم مطلوب');
+ if(['member','worker','beneficiary'].includes(kind)&&!String(p.name||'').trim())throw Error('الاسم مطلوب');
  if(kind==='income'&&!String(p.contributor||'').trim())throw Error('اسم المساهم مطلوب');
  if(kind==='expense'&&!String(p.recipient||'').trim())throw Error('المستفيد من الصرف مطلوب');
  if(kind==='beneficiary'){if(!Number.isInteger(Number(p.age))||Number(p.age)<0||Number(p.age)>120)throw Error('العمر غير صالح');if(!Array.isArray(p.categories))throw Error('حدد تصنيفات الحالة');}
