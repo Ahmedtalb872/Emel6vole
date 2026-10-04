@@ -1,0 +1,1 @@
+{"name":"emel6vole","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"node server.mjs","start":"node server.mjs","build":"node build.mjs","test":"node --test test/*.test.mjs","db:generate":"drizzle-kit generate"},"devDependencies":{"drizzle-kit":"^0.31.4","drizzle-orm":"^0.44.5"}}
