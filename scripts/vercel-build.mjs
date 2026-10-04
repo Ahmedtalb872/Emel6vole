@@ -10,7 +10,7 @@ const output='.vercel/output';const func=output+'/functions/app.func';
 await rm(output,{recursive:true,force:true});
 await mkdir(func+'/api',{recursive:true});await mkdir(func+'/public',{recursive:true});
 for(const file of ['core.mjs','postgres.mjs'])await cp(file,func+'/'+file);
-await cp('api/app.mjs',func+'/api/app.mjs');await cp('public/index.html',func+'/public/index.html');
+await cp('api/app.mjs',func+'/api/app.mjs');await cp('public/index.html',func+'/public/index.html');await cp('public/login.html',func+'/public/login.html');
 await writeFile(func+'/package.json',JSON.stringify({type:'module'}));
 await writeFile(func+'/index.mjs','export { default } from "./api/app.mjs";\n');
 await writeFile(func+'/.vc-config.json',JSON.stringify({runtime:'nodejs24.x',handler:'index.mjs',launcherType:'Nodejs',shouldAddHelpers:true},null,2));
