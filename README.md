@@ -41,7 +41,7 @@ npm run build
 
 ## النشر على Vercel
 
-إعدادات Vercel موجودة في `vercel.json`، وواجهة التشغيل في `api/app.mjs`. لا تستخدم SQLite المحلية في Vercel؛ البيانات تُحفظ في PostgreSQL عبر Neon.
+إعدادات Vercel موجودة في `vercel.json`، وواجهة التشغيل في `api/app.mjs`. البناء يولد `.vercel/output` وفق Build Output API مع وظيفة `/app` وتوجيه صريح للصفحة الرئيسية وواجهات البيانات. لا تستخدم SQLite المحلية في Vercel؛ البيانات تُحفظ في PostgreSQL عبر Neon.
 
 1. استورد المستودع في Vercel.
 2. اربط قاعدة Neon من تبويب Storage / Marketplace. يجب توفير `DATABASE_URL` أو `POSTGRES_URL`.
