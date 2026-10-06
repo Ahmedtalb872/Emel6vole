@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';import {validate} from './core.mjs';
 const defaults=JSON.parse(readFileSync(new URL('./supabase.config.json',import.meta.url),'utf8'));
-const prefix={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET'};
+const prefix={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT'};
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 export function supabaseConfig(env=process.env){return {url:env.SUPABASE_URL||defaults.url,publishableKey:env.SUPABASE_PUBLISHABLE_KEY||defaults.publishableKey};}
 export function createSupabaseClient(config=supabaseConfig(),accessToken='',fetcher=fetch){
