@@ -1,7 +1,9 @@
-import {readFileSync} from 'node:fs';import {createHash,randomInt} from 'node:crypto';import {validate} from './core.mjs';
+import {readFileSync} from 'node:fs';import {validate} from './core.mjs';
 const defaults=JSON.parse(readFileSync(new URL('./supabase.config.json',import.meta.url),'utf8'));
 const prefix={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT'};
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+export const GROUPS=[{key:'majlis',name:'المجلس التنفيذي',role:'editor'},{key:'lijan',name:'اللجان المتخصصة',role:'viewer'},{key:'jamiya',name:'الجمعية العامة',role:'viewer'}];
+export const groupEmail=key=>'group-'+key+'@accounts.emel6vole.vercel.app';
 export function supabaseConfig(env=process.env){return {url:env.SUPABASE_URL||defaults.url,publishableKey:env.SUPABASE_PUBLISHABLE_KEY||defaults.publishableKey};}
 export function createSupabaseClient(config=supabaseConfig(),accessToken='',fetcher=fetch){
  const origin=new URL(config.url);if(origin.protocol!=='https:'||!origin.hostname.endsWith('.supabase.co'))throw Error('عنوان Supabase غير صالح');
@@ -30,27 +32,22 @@ export async function handleSupabase(req,fetcher=fetch){const url=new URL(req.ur
  }
  const members=await client.request('/rest/v1/emel_memberships?select=role&user_id=eq.'+encodeURIComponent(user.id));const role=members?.[0]?.role;if(!role){if(req.method==='GET'&&url.pathname==='/api/records')return json({records:[],preview:true,access:'pending',authenticated:true});if(req.method==='GET'&&url.pathname==='/api/audit')return json({results:[],preview:true,access:'pending'});return json({error:'الحساب غير مصرح له بالوصول إلى سجلات الجمعية'},403);}
  if(url.pathname==='/api/team'||url.pathname.startsWith('/api/team/')){
- if(role!=='owner')return json({error:'إدارة فريق الإدارة للرئيس (المالك) فقط'},403);
+ if(role!=='owner')return json({error:'إدارة حسابات التشكيلة للرئيس (المالك) فقط'},403);
  const rpc=(name,args={})=>client.request('/rest/v1/rpc/'+name,{method:'POST',body:JSON.stringify(args)});
- const fail=e=>e.code==='PGRST202'||e.code==='42883'?json({error:'فريق الإدارة يحتاج تطبيق db/team.sql في Supabase مرة واحدة'},503):e.code==='23505'?json({error:'هذا الرقم عضو في فريق الإدارة بالفعل'},409):e.code==='P0001'||e.code==='P0002'?json({error:'تعذر تنفيذ العملية على هذا العضو'},400):null;
  try{
- if(url.pathname==='/api/team'&&req.method==='GET')return json(await rpc('emel_team_list')||{members:[],invites:[]});
+ if(url.pathname==='/api/team'&&req.method==='GET'){const rows=await rpc('emel_group_list')||[];return json({groups:GROUPS.map(g=>{const r=rows.find(x=>x.email===groupEmail(g.key));return {...g,exists:Boolean(r),active:Boolean(r?.active),role:r?.role||g.role}})})}
  if(req.method!=='POST')return json({error:'غير مسموح'},405);
- const input=await req.json();if(!input||typeof input!=='object'||Array.isArray(input))return json({error:'بيانات غير صالحة'},400);
- if(url.pathname==='/api/team'){
-  const {normalizePhone,phoneIdentity}=await import('./supabase-auth.mjs');
-  let phone;try{phone=normalizePhone(String(input.phone||'').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632)).replace(/[\s()-]/g,'').replace(/^00/,'+').replace(/^(\d{8})$/,'+222$1'))}catch(e){return json({error:e.message},400)}
-  const name=String(input.name||'').trim(),title=String(input.title||'').trim();if(!name||!title||name.length>120||title.length>120)return json({error:'أدخل اسم العضو ومنصبه'},400);
-  if(!['owner','editor','viewer'].includes(input.role))return json({error:'الصلاحية غير صالحة'},400);
-  const code=String(randomInt(0,1000000)).padStart(6,'0');
-  await rpc('emel_team_invite',{p_email:phoneIdentity(phone),p_phone:phone,p_name:name,p_title:title,p_role:input.role,p_code_hash:createHash('sha256').update(code).digest('hex')});
-  return json({ok:true,phone,code,name,title,role:input.role},201);
- }
- const action=url.pathname.slice('/api/team/'.length);
- if(action==='role'||action==='remove'){if(!/^[0-9a-f-]{36}$/i.test(String(input.user_id||'')))return json({error:'العضو غير موجود'},404);if(action==='role'){if(!['owner','editor','viewer'].includes(input.role))return json({error:'الصلاحية غير صالحة'},400);await rpc('emel_team_set_role',{p_user:input.user_id,p_role:input.role})}else await rpc('emel_team_remove',{p_user:input.user_id});return json({ok:true})}
- if(action==='cancel'){if(!/^phone-[0-9a-f]{64}@[a-z0-9.-]+$/.test(String(input.login_email||'')))return json({error:'الدعوة غير موجودة'},404);await rpc('emel_team_cancel_invite',{p_email:input.login_email});return json({ok:true})}
+ const input=await req.json();const g=GROUPS.find(x=>x.key===input?.key);if(!g)return json({error:'الحساب غير موجود'},404);const email=groupEmail(g.key),action=url.pathname.slice('/api/team/'.length);
+ const pass=()=>typeof input.password==='string'&&input.password.length>=6&&input.password.length<=72;const roleOk=['editor','viewer'].includes(input.role);
+ if(action==='activate'){if(!pass())return json({error:'اختر كلمة مرور من 6 أحرف على الأقل'},400);if(!roleOk)return json({error:'الصلاحية غير صالحة'},400);
+  const {authRequest}=await import('./supabase-auth.mjs');let created=false;try{await authRequest('/auth/v1/signup',{email,password:input.password,data:{group:g.key}},fetcher);created=true}catch(e){if(e.code!=='user_already_exists')throw e}
+  if(!created)await rpc('emel_group_set_password',{p_email:email,p_password:input.password});
+  await rpc('emel_group_activate',{p_email:email,p_role:input.role,p_name:g.name});return json({ok:true})}
+ if(action==='password'){if(!pass())return json({error:'اختر كلمة مرور من 6 أحرف على الأقل'},400);await rpc('emel_group_set_password',{p_email:email,p_password:input.password});return json({ok:true})}
+ if(action==='role'){if(!roleOk)return json({error:'الصلاحية غير صالحة'},400);await rpc('emel_group_activate',{p_email:email,p_role:input.role,p_name:g.name});return json({ok:true})}
+ if(action==='deactivate'){await rpc('emel_group_deactivate',{p_email:email});return json({ok:true})}
  return json({error:'غير موجود'},404);
- }catch(e){const r=fail(e);if(r)return r;throw e}
+ }catch(e){if(e.code==='PGRST202'||e.code==='42883')return json({error:'حسابات التشكيلة تحتاج تطبيق db/team.sql في Supabase مرة واحدة'},503);if(e.code==='P0002')return json({error:'فعّل الحساب أولًا بكلمة مرور'},400);throw e}
  }
  if(url.pathname==='/api/membership-requests'||url.pathname.startsWith('/api/membership-requests/')){
  const notReady=e=>['42703','PGRST202','PGRST204'].includes(e.code)?json({error:'طلبات الانتساب تحتاج تطبيق db/membership-requests.sql في Supabase مرة واحدة'},503):null;
