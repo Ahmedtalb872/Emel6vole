@@ -1,4 +1,4 @@
-import {readFileSync} from 'node:fs';import {validate} from './core.mjs';
+import {readFileSync} from 'node:fs';import {createHash,randomInt} from 'node:crypto';import {validate} from './core.mjs';
 const defaults=JSON.parse(readFileSync(new URL('./supabase.config.json',import.meta.url),'utf8'));
 const prefix={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT'};
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
@@ -29,6 +29,29 @@ export async function handleSupabase(req,fetcher=fetch){const url=new URL(req.ur
  return json({ok:true,id:user.id,phone,profile:{...saved[0].payload,joinedAt:saved[0].created_at}});
  }
  const members=await client.request('/rest/v1/emel_memberships?select=role&user_id=eq.'+encodeURIComponent(user.id));const role=members?.[0]?.role;if(!role){if(req.method==='GET'&&url.pathname==='/api/records')return json({records:[],preview:true,access:'pending',authenticated:true});if(req.method==='GET'&&url.pathname==='/api/audit')return json({results:[],preview:true,access:'pending'});return json({error:'الحساب غير مصرح له بالوصول إلى سجلات الجمعية'},403);}
+ if(url.pathname==='/api/team'||url.pathname.startsWith('/api/team/')){
+ if(role!=='owner')return json({error:'إدارة فريق الإدارة للرئيس (المالك) فقط'},403);
+ const rpc=(name,args={})=>client.request('/rest/v1/rpc/'+name,{method:'POST',body:JSON.stringify(args)});
+ const fail=e=>e.code==='PGRST202'||e.code==='42883'?json({error:'فريق الإدارة يحتاج تطبيق db/team.sql في Supabase مرة واحدة'},503):e.code==='23505'?json({error:'هذا الرقم عضو في فريق الإدارة بالفعل'},409):e.code==='P0001'||e.code==='P0002'?json({error:'تعذر تنفيذ العملية على هذا العضو'},400):null;
+ try{
+ if(url.pathname==='/api/team'&&req.method==='GET')return json(await rpc('emel_team_list')||{members:[],invites:[]});
+ if(req.method!=='POST')return json({error:'غير مسموح'},405);
+ const input=await req.json();if(!input||typeof input!=='object'||Array.isArray(input))return json({error:'بيانات غير صالحة'},400);
+ if(url.pathname==='/api/team'){
+  const {normalizePhone,phoneIdentity}=await import('./supabase-auth.mjs');
+  let phone;try{phone=normalizePhone(String(input.phone||'').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632)).replace(/[\s()-]/g,'').replace(/^00/,'+').replace(/^(\d{8})$/,'+222$1'))}catch(e){return json({error:e.message},400)}
+  const name=String(input.name||'').trim(),title=String(input.title||'').trim();if(!name||!title||name.length>120||title.length>120)return json({error:'أدخل اسم العضو ومنصبه'},400);
+  if(!['owner','editor','viewer'].includes(input.role))return json({error:'الصلاحية غير صالحة'},400);
+  const code=String(randomInt(0,1000000)).padStart(6,'0');
+  await rpc('emel_team_invite',{p_email:phoneIdentity(phone),p_phone:phone,p_name:name,p_title:title,p_role:input.role,p_code_hash:createHash('sha256').update(code).digest('hex')});
+  return json({ok:true,phone,code,name,title,role:input.role},201);
+ }
+ const action=url.pathname.slice('/api/team/'.length);
+ if(action==='role'||action==='remove'){if(!/^[0-9a-f-]{36}$/i.test(String(input.user_id||'')))return json({error:'العضو غير موجود'},404);if(action==='role'){if(!['owner','editor','viewer'].includes(input.role))return json({error:'الصلاحية غير صالحة'},400);await rpc('emel_team_set_role',{p_user:input.user_id,p_role:input.role})}else await rpc('emel_team_remove',{p_user:input.user_id});return json({ok:true})}
+ if(action==='cancel'){if(!/^phone-[0-9a-f]{64}@[a-z0-9.-]+$/.test(String(input.login_email||'')))return json({error:'الدعوة غير موجودة'},404);await rpc('emel_team_cancel_invite',{p_email:input.login_email});return json({ok:true})}
+ return json({error:'غير موجود'},404);
+ }catch(e){const r=fail(e);if(r)return r;throw e}
+ }
  if(url.pathname==='/api/membership-requests'||url.pathname.startsWith('/api/membership-requests/')){
  const notReady=e=>['42703','PGRST202','PGRST204'].includes(e.code)?json({error:'طلبات الانتساب تحتاج تطبيق db/membership-requests.sql في Supabase مرة واحدة'},503):null;
  if(url.pathname==='/api/membership-requests'){if(req.method!=='GET')return json({error:'غير مسموح'},405);try{const rows=await client.request('/rest/v1/emel_profiles?select=user_id,name:payload->>name,residence:payload->>residence,profession:payload->>profession,interests:payload->>interests,notes:payload->>notes,status,created_at,reviewed_at&order=created_at.desc&limit=1000');return json({requests:rows,canReview:['owner','editor'].includes(role)});}catch(e){const r=notReady(e);if(r)return r;throw e;}}
@@ -37,7 +60,7 @@ export async function handleSupabase(req,fetcher=fetch){const url=new URL(req.ur
  const input=await req.json();if(!['approved','rejected','pending'].includes(input?.decision))return json({error:'القرار غير صالح'},400);
  try{const row=await client.request('/rest/v1/rpc/emel_review_profile',{method:'POST',body:JSON.stringify({target,decision:input.decision})});return json({ok:true,status:row?.status||input.decision,reviewed_at:row?.reviewed_at||null});}catch(e){const r=notReady(e);if(r)return r;if(e.code==='P0002')return json({error:'طلب الانتساب غير موجود'},404);throw e;}
  }
- if(url.pathname==='/api/records'&&req.method==='GET'){const rows=[];for(let offset=0;offset<100000;offset+=1000){const chunk=await client.request('/rest/v1/emel_records?select=id,kind,payload&deleted=eq.false&order=id.desc&limit=1000&offset='+offset);rows.push(...chunk);if(chunk.length<1000)return json({records:rows.map(r=>({...r.payload,id:r.id,kind:r.kind,code:prefix[r.kind]+'-'+String(r.id).padStart(6,'0')})),preview:false});}return json({error:'عدد السجلات كبير جدًا للعرض دفعة واحدة'},503);}
+ if(url.pathname==='/api/records'&&req.method==='GET'){const rows=[];for(let offset=0;offset<100000;offset+=1000){const chunk=await client.request('/rest/v1/emel_records?select=id,kind,payload&deleted=eq.false&order=id.desc&limit=1000&offset='+offset);rows.push(...chunk);if(chunk.length<1000)return json({records:rows.map(r=>({...r.payload,id:r.id,kind:r.kind,code:prefix[r.kind]+'-'+String(r.id).padStart(6,'0')})),preview:false,role});}return json({error:'عدد السجلات كبير جدًا للعرض دفعة واحدة'},503);}
  if(url.pathname==='/api/audit'&&req.method==='GET'){const rows=await client.request('/rest/v1/emel_audit?select=id,record_id,action,created_at&order=id.desc&limit=100');return json({results:rows.map(r=>({...r,at:r.created_at}))});}
  const match=url.pathname.match(/^\/api\/records(?:\/(\d+))?$/);if(!match)return json({error:'غير موجود'},404);if(!['POST','PUT','DELETE'].includes(req.method))return json({error:'غير مسموح'},405);if(!['owner','editor'].includes(role))return json({error:'الحساب يملك صلاحية الاطلاع فقط'},403);
  const id=match[1]?Number(match[1]):null;if(id&&!Number.isSafeInteger(id))return json({error:'رقم السجل غير صالح'},400);let previous;if(id){previous=(await client.request('/rest/v1/emel_records?select=id,kind,payload&deleted=eq.false&id=eq.'+id))[0];if(!previous)return json({error:'السجل غير موجود'},404);}
