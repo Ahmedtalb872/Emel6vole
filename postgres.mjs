@@ -1,5 +1,5 @@
 import {validate} from './core.mjs';
-const prefixes={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT'};
+const prefixes={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT',child:'KID'};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 export async function handlePostgres(req,sql){
  try{

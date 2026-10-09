@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';import {validate} from './core.mjs';
 const defaults=JSON.parse(readFileSync(new URL('./supabase.config.json',import.meta.url),'utf8'));
-const prefix={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT'};
+const prefix={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT',child:'KID'};
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 export const GROUPS=[{key:'majlis',name:'المجلس التنفيذي',role:'editor'},{key:'lijan',name:'اللجان المتخصصة',role:'viewer'},{key:'jamiya',name:'الجمعية العامة',role:'viewer'}];
 export const groupEmail=key=>'group-'+key+'@accounts.emel6vole.vercel.app';
