@@ -6,3 +6,4 @@ test('storehouse page, in-kind income notice and report line never touch the cas
  assert.match(html,/expense:'المصروفات',stock:'المخازن'/);assert.match(html,/function stockBalance\(\)/);assert.match(html,/المداخيل العينية \(غير نقدية\)/);assert.match(html,/inKind:inKindValue\(/);
  assert.match(html,/const sum=rs=>rs\.reduce\(\(s,r\)=>s\+Number\(r\.amount\|\|0\),0\)/);assert.doesNotMatch(html.match(/stock:\[\['date'[^\]]*\][^]*?\]\],/)[0],/'amount'/);
  const sql=readFileSync(new URL('../db/stock.sql',import.meta.url),'utf8');assert.match(sql,/'patient','child','stock'\)\)/);assert.match(sql,/NEW\.kind = 'stock'/);});
+test('dashboard shows an available-stock tile linking to the storehouse',()=>{const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');assert.match(html,/\['المخزون المتوفر',nf\(stockAvail\.length\)/);assert.match(html,/const stockAvail=stockBalance\(\)\.filter\(e=>e\.inQ-e\.outQ>0\)/);});
