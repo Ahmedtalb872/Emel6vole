@@ -1,18 +1,21 @@
-export const kinds=['income','expense','member','worker','beneficiary','aid','settings','patient'];
-const prefixes={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT'};
+export const kinds=['income','expense','member','worker','beneficiary','aid','settings','patient','child','stock'];
+const prefixes={income:'REV',expense:'EXP',member:'MEM',worker:'WRK',beneficiary:'BEN',aid:'AID',settings:'SET',patient:'PAT',child:'KID',stock:'STK'};
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 export function validate(kind,p){
  if(!kinds.includes(kind)||!p||typeof p!=='object'||Array.isArray(p))throw Error('بيانات غير صالحة');
  if(JSON.stringify(p).length>60000)throw Error('البيانات طويلة جدًا');
  if(['income','expense','aid'].includes(kind)){if(!/^\d{4}-\d{2}-\d{2}$/.test(p.date||'')||isNaN(Date.parse(p.date)))throw Error('التاريخ غير صالح');if(!Number.isFinite(Number(p.amount))||Number(p.amount)<=0)throw Error('أدخل مبلغًا أكبر من صفر');p.amount=Math.round(Number(p.amount)*100)/100;}
- if(['member','worker','beneficiary','patient'].includes(kind)&&!String(p.name||'').trim())throw Error('الاسم مطلوب');
+ if(['member','worker','beneficiary','patient','child'].includes(kind)&&!String(p.name||'').trim())throw Error('الاسم مطلوب');
+ if(kind==='stock'){if(!/^\d{4}-\d{2}-\d{2}$/.test(p.date||'')||isNaN(Date.parse(p.date)))throw Error('التاريخ غير صالح');if(!String(p.item||'').trim())throw Error('اسم المادة مطلوب');if(!Number.isFinite(Number(p.quantity))||Number(p.quantity)<=0)throw Error('أدخل كمية أكبر من صفر');if(!['وارد (تبرع عيني)','صادر (توزيع)'].includes(p.type))throw Error('نوع الحركة غير صالح');if(p.value!==undefined&&p.value!==''&&(!Number.isFinite(Number(p.value))||Number(p.value)<0))throw Error('القيمة التقديرية غير صالحة');}
  if(kind==='income'&&!String(p.contributor||'').trim())throw Error('اسم المساهم مطلوب');
  if(kind==='expense'&&!String(p.recipient||'').trim())throw Error('المستفيد من الصرف مطلوب');
  if(kind==='beneficiary'){if(!Number.isInteger(Number(p.age))||Number(p.age)<0||Number(p.age)>120)throw Error('العمر غير صالح');if(!Array.isArray(p.categories))throw Error('حدد تصنيفات الحالة');}
+ if(kind==='child'&&p.age!==undefined&&p.age!==''&&(!Number.isInteger(Number(p.age))||Number(p.age)<0||Number(p.age)>25))throw Error('عمر الطفل غير صالح');
+ if(kind==='child'&&p.sponsorAmount!==undefined&&p.sponsorAmount!==''&&(!Number.isFinite(Number(p.sponsorAmount))||Number(p.sponsorAmount)<0))throw Error('مبلغ الكفالة غير صالح');
  if(kind==='patient'&&p.age!==undefined&&p.age!==''&&(!Number.isInteger(Number(p.age))||Number(p.age)<0||Number(p.age)>120))throw Error('العمر غير صالح');
  if(kind==='member'&&(!Number.isFinite(Number(p.subscription))||Number(p.subscription)<0))throw Error('قيمة الاشتراك غير صالحة');
  if(kind==='aid'&&(!p.beneficiaryId||!['نقدية','عينية'].includes(p.mode)))throw Error('حدد المستفيد وطبيعة المساعدة');
- if(p.photo!==undefined){if(!['worker','beneficiary','patient'].includes(kind)||typeof p.photo!=='string'||p.photo.length>25000||(p.photo&&!/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/=]+$/.test(p.photo)))throw Error('صورة الشخص غير صالحة');}
+ if(p.photo!==undefined){if(!['worker','beneficiary','patient','child'].includes(kind)||typeof p.photo!=='string'||p.photo.length>25000||(p.photo&&!/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/=]+$/.test(p.photo)))throw Error('صورة الشخص غير صالحة');}
  return p;
 }
 export async function handle(req,db){
